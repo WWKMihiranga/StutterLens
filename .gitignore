@@ -1,0 +1,30 @@
+# Python / Environment
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+venv/
+env/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Datasets and Processed Data (Heavy files)
+data/raw/
+data/processed/
+
+# Model Weights and Checkpoints
+models/checkpoints/
+
+# Generated Outputs and Logs
+outputs/
+logs/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
