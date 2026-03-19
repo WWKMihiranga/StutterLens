@@ -211,7 +211,7 @@ The web app supports audio of **any length** by automatically chunking into
 3-second segments, analysing each independently, and merging results across
 chunk boundaries. Clinical metrics are computed on the full recording.
 
-**Live demo**: [Hugging Face Spaces](https://huggingface.co/spaces/) *(update with your actual URL)*
+**Live demo**: [Hugging Face Spaces](https://huggingface.co/spaces/w2kavindumihiranga/stuttering-detection)
 
 ## Evaluation Metrics
 
