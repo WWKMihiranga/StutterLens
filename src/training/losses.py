@@ -1,43 +1,17 @@
-"""
-Loss functions for the three training stages.
-
-Key fixes vs. original:
-  - MILLoss now uses class-weighted FOCAL BCE to handle class imbalance.
-  - GateEntropyLoss prevents gating collapse (neural=99.9% problem).
-  - Stage2CombinedLoss has higher weak supervision weight.
-"""
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Stage 0 — Rule pre-training
-# ─────────────────────────────────────────────────────────────────────────────
 class RulePretrainingLoss(nn.Module):
     def forward(self, rule_scores, rule_targets):
         return F.binary_cross_entropy(rule_scores, rule_targets, reduction="mean")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Stage 1 — Multi-Instance Learning (CLASS-WEIGHTED FOCAL BCE)
-# ─────────────────────────────────────────────────────────────────────────────
 class MILLoss(nn.Module):
-    """Mixed MIL pooling → focal BCE with class weights.
-
-    Balanced design for multi-label stutter detection:
-    - **Symmetric focal loss**: same gamma for positives and negatives.
-      This down-weights easy examples on BOTH sides equally, preventing
-      the recall-inflation that occurs with asymmetric focal.
-    - **Class weights only**: inter-class balancing via inverse frequency.
-      No pos_weight boost — this was causing recall to saturate at ~1.0
-      by making positive predictions nearly cost-free.
-    - Label smoothing prevents overconfident predictions.
-    - Mixed pooling (alpha * max + (1-alpha) * mean) reduces the impact
-      of noisy single-frame max activations.
-    """
 
     def __init__(self, class_weights: Optional[torch.Tensor] = None,
                  focal_gamma: float = 2.0,
@@ -116,20 +90,8 @@ class MILLoss(nn.Module):
         return focal_loss + sep_loss
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Gate entropy regulariser — PREVENTS GATING COLLAPSE (v2)
-# ─────────────────────────────────────────────────────────────────────────────
 class GateEntropyLoss(nn.Module):
-    """Penalise low-entropy gate distributions + rule diversity.
-
-    When the gating network collapses to neural≈1.0, rules≈0.0, entropy
-    is near zero.  This loss pushes the gate towards a more balanced
-    distribution so all components get meaningful gradients.
-
-    Penalty strengths are calibrated to encourage rule participation
-    without forcing uniform gates — rules should be able to specialise
-    on the frames where they're acoustically relevant.
-    """
 
     def __init__(self, min_rule_weight: float = 0.03):
         super().__init__()
@@ -159,9 +121,7 @@ class GateEntropyLoss(nn.Module):
         return ent_loss + floor_penalty + total_shortfall + diversity_penalty
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 — Boundary regression + consistency + weak MIL
-# ─────────────────────────────────────────────────────────────────────────────
 class BoundaryRegressionLoss(nn.Module):
     def __init__(self, alpha=1.0, beta=0.1):
         super().__init__()

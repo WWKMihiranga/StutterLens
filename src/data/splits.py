@@ -1,8 +1,3 @@
-"""
-Dataset discovery, speaker-ID extraction, and speaker-disjoint splitting
-for the SEP-28k stuttering dataset.
-"""
-
 import os
 import glob
 import json
@@ -16,20 +11,7 @@ def discover_dataset(dataset_path: str, class_mapping: Dict[str, str],
                      include_negatives: bool = False,
                      negative_ratio: float = 0.15,
                      negative_class_name: str = "NoStutteredWords") -> pd.DataFrame:
-    """Scan *dataset_path* for class sub-folders and build an index DataFrame.
-
-    Only folders whose names appear in *class_mapping* are kept.
-    Uses case-insensitive matching so "Interjection" matches correctly.
-
-    If *include_negatives* is True, also samples a fraction of files from
-    the *negative_class_name* folder and labels them as ``__negative__``
-    (all-zero label vector). This teaches the model what "no stutter" sounds
-    like and dramatically improves precision.
-
-    Returns
-    -------
-    pd.DataFrame with columns [file_path, filename, class, class_label].
-    """
+    
     records = []
     negative_records = []
     all_items = sorted(
@@ -97,16 +79,12 @@ def discover_dataset(dataset_path: str, class_mapping: Dict[str, str],
     found = set(df["class"].unique()) - {"__negative__"}
     missing = expected - found
     if missing:
-        print(f"  ⚠ WARNING: Missing classes in data: {missing}")
+        print(f"  WARNING: Missing classes in data: {missing}")
     return df
 
 
 def extract_speaker_id(filename: str) -> str:
-    """Derive a speaker / episode ID from an SEP-28k filename.
 
-    Convention: ``<Podcast>_<Episode>_<Clip>.wav``
-    We use ``<podcast>_<episode>`` as the speaker-group key.
-    """
     name = filename.replace(".wav", "")
     parts = name.split("_")
     if len(parts) >= 3:
@@ -122,11 +100,7 @@ def create_speaker_disjoint_splits(
     val_ratio: float = 0.15,
     seed: int = 42,
 ) -> pd.DataFrame:
-    """Assign each row to train / val / test so that no speaker appears in
-    more than one split.
-
-    Returns the DataFrame with a new ``split`` column.
-    """
+    
     rng = np.random.RandomState(seed)
 
     df = df.copy()
@@ -162,7 +136,7 @@ def create_speaker_disjoint_splits(
 
 def save_splits(df: pd.DataFrame, processed_dir: str,
                 classes: List[str]) -> Dict:
-    """Persist train / val / test CSVs and label mappings."""
+    
     os.makedirs(processed_dir, exist_ok=True)
 
     label2idx = {c: i for i, c in enumerate(classes)}

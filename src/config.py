@@ -1,7 +1,3 @@
-"""
-Central configuration for the Stuttering Detection System.
-"""
-
 import os
 import json
 import torch
@@ -9,7 +5,7 @@ from pathlib import Path
 
 
 class Config:
-    # ── Paths ────────────────────────────────────────────────────────────
+    # Paths
     PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     DATA_RAW = os.path.join(PROJECT_ROOT, "data", "raw")
     DATA_PROCESSED = os.path.join(PROJECT_ROOT, "data", "processed")
@@ -18,14 +14,12 @@ class Config:
     LOG_DIR = os.path.join(PROJECT_ROOT, "logs")
     DATASET_PATH = DATA_RAW
 
-    # ── Audio ────────────────────────────────────────────────────────────
+    # Audio
     SAMPLE_RATE = 16_000
     CLIP_DURATION = 3.0
     MAX_AUDIO_LENGTH = int(SAMPLE_RATE * CLIP_DURATION)
 
-    # ── Classes ──────────────────────────────────────────────────────────
-    # Top 3 classes by F1 and pos/neg separation from 5-class evaluation.
-    # Dropped: block (separation=0.066), sound_repetition (F1=0.346).
+    # Classes
     STUTTER_TYPES = [
         "interjection", "prolongation", "word_repetition",
     ]
@@ -43,7 +37,7 @@ class Config:
     INCLUDE_NEGATIVES = True
     NEGATIVE_RATIO = 0.25  # negatives as fraction of total stutter samples (raised from 0.15)
 
-    # ── Model ────────────────────────────────────────────────────────────
+    # Model
     WAV2VEC2_MODEL = "facebook/wav2vec2-base-960h"
     HIDDEN_DIM = 768
     TEMPORAL_HIDDEN_DIM = 256          # increased from 192 for more capacity
@@ -58,12 +52,12 @@ class Config:
     # Encoder fine-tuning: unfreeze last N transformer layers
     UNFREEZE_ENCODER_LAYERS = 2        # fine-tune top 2 layers of Wav2Vec2
 
-    # ── Stage 0 ──────────────────────────────────────────────────────────
+    # Stage 0
     STAGE0_NUM_EPOCHS = 20             # increased from 15
     STAGE0_LR = 5e-4
     STAGE0_SYNTHETIC_SAMPLES = 5000    # increased from 3000
 
-    # ── Stage 1 ──────────────────────────────────────────────────────────
+    # Stage 1
     BATCH_SIZE = 16                    # increased from 8 for more stable gradients
     LEARNING_RATE = 2e-5               # lower LR since encoder is partially unfrozen
     ENCODER_LR = 5e-6                  # separate LR for encoder layers
@@ -78,7 +72,7 @@ class Config:
     LABEL_SMOOTHING = 0.05             # smooth hard labels
     CLASS_WEIGHT_CAP = 15.0            # raised from 10.0 for stronger minority class boost
 
-    # ── Stage 2 ──────────────────────────────────────────────────────────
+    # Stage 2
     NUM_EPOCHS_STAGE2 = 15             # full training (set lower for quick testing)
     STAGE2_LR = 1e-5                   # lower for stability
     EMA_DECAY = 0.999                  # slower EMA for better teacher
@@ -93,20 +87,20 @@ class Config:
     PSEUDO_LABEL_PERCENTILE = 65       # raised from 40 for higher quality pseudo-labels
     PSEUDO_LABEL_MIN_THRESH = 0.35     # minimum threshold floor
 
-    # ── Gate entropy annealing ────────────────────────────────────────────
+    # Gate entropy annealing
     GATE_ENTROPY_LAMBDA_START = 0.5    # strong entropy reg at start
     GATE_ENTROPY_LAMBDA_END = 0.15     # anneal down to allow specialisation
 
-    # ── Event post-processing ─────────────────────────────────────────────
+    # Event post-processing
     EVENT_MEDIAN_FILTER_SIZE = 5       # smooth frame probs before detection
     EVENT_MERGE_GAP = 2                # merge events within N frames
 
-    # ── Splits ───────────────────────────────────────────────────────────
+    # Splits
     TRAIN_RATIO = 0.70
     VAL_RATIO = 0.15
     TEST_RATIO = 0.15
 
-    # ── Device ───────────────────────────────────────────────────────────
+    # Device
     DEVICE = torch.device("cpu")
     SEED = 42
 

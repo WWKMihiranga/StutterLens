@@ -1,17 +1,3 @@
-"""
-Evaluation metrics for stuttering event detection.
-
-Covers all metrics specified in the PPRS:
-  * **Event-level F1** with IoU threshold (localization quality).
-  * **Onset / Offset RMSE** in milliseconds (boundary precision).
-  * **Clip-level classification** metrics (accuracy, precision, recall, F1).
-  * **Multi-label metrics** — Hamming loss, subset accuracy (exact match),
-    sample-averaged F1 for proper multi-label evaluation.
-  * **Probability calibration** — post-hoc temperature scaling (Platt scaling)
-    to fix uncalibrated sigmoid outputs.
-  * **Pearson's r** for gate–feature correlation (explanation fidelity).
-"""
-
 import numpy as np
 from typing import List, Dict, Tuple, Optional
 from sklearn.metrics import (
@@ -20,28 +6,12 @@ from sklearn.metrics import (
 )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Event detection from frame predictions
-# ─────────────────────────────────────────────────────────────────────────────
 def detect_events(frame_preds: np.ndarray,
                   min_event_length: int = 3,
                   median_filter_size: int = 0,
                   merge_gap: int = 0) -> List[Dict]:
-    """Extract contiguous events from a binary frame-prediction matrix.
-
-    Parameters
-    ----------
-    frame_preds : (T, C) binary array
-    min_event_length : minimum frames for a valid event
-    median_filter_size : if > 0, apply median filter to smooth predictions
-        before event extraction (reduces boundary jitter).
-    merge_gap : if > 0, merge events of the same class separated by fewer
-        than this many frames (reduces fragmentation).
-
-    Returns
-    -------
-    list of dicts with keys: class_idx, onset, offset, duration
-    """
+    
     from scipy.ndimage import median_filter as _medfilt
 
     T, C = frame_preds.shape
@@ -81,11 +51,8 @@ def detect_events(frame_preds: np.ndarray,
     return events
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # IoU and event-level F1
-# ─────────────────────────────────────────────────────────────────────────────
 def _iou(ev_a: Dict, ev_b: Dict) -> float:
-    """Temporal IoU between two events (same class assumed)."""
     inter_start = max(ev_a["onset"], ev_b["onset"])
     inter_end = min(ev_a["offset"], ev_b["offset"])
     inter = max(0, inter_end - inter_start)
@@ -96,7 +63,6 @@ def _iou(ev_a: Dict, ev_b: Dict) -> float:
 
 def event_level_f1(pred_events: List[Dict], gt_events: List[Dict],
                    iou_threshold: float = 0.3) -> Dict:
-    """Compute event-level precision, recall, F1 at a given IoU threshold."""
     matched_gt = set()
     tp = 0
 
@@ -122,13 +88,10 @@ def event_level_f1(pred_events: List[Dict], gt_events: List[Dict],
             "fp": len(pred_events) - tp, "fn": len(gt_events) - tp}
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Onset / offset RMSE
-# ─────────────────────────────────────────────────────────────────────────────
 def boundary_rmse(pred_events: List[Dict], gt_events: List[Dict],
                   ms_per_frame: float = 20.0,
                   iou_threshold: float = 0.1) -> Dict:
-    """RMSE of onset and offset errors (in ms) for matched events."""
     onset_errs, offset_errs = [], []
     matched_gt = set()
 
@@ -157,22 +120,10 @@ def boundary_rmse(pred_events: List[Dict], gt_events: List[Dict],
     }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Clip-level classification report
-# ─────────────────────────────────────────────────────────────────────────────
 def clip_level_metrics(all_preds: np.ndarray, all_targets: np.ndarray,
                        class_names: List[str], threshold: float = 0.5) -> Dict:
-    """Multi-label classification report with proper metrics.
-
-    In addition to macro-averaged precision/recall/F1, this now reports:
-      - **Hamming loss**: fraction of wrong labels (lower is better).
-      - **Subset accuracy**: fraction of samples where ALL labels match exactly.
-      - **Sample F1**: F1 averaged per-sample (proper multi-label metric).
-      - Per-class metrics including per-class accuracy.
-
-    The ``accuracy`` field reports Hamming accuracy (1 - hamming_loss),
-    which is more informative for multi-label tasks than subset accuracy.
-    """
+    
     preds_bin = (all_preds > threshold).astype(int)
     targets_bin = all_targets.astype(int)
 
@@ -233,25 +184,7 @@ def optimize_per_class_thresholds(all_preds: np.ndarray, all_targets: np.ndarray
                                    class_names: List[str],
                                    search_range: Tuple[float, float] = (0.1, 0.9),
                                    steps: int = 50) -> Dict:
-    """Find per-class decision thresholds that maximise per-class F1.
-
-    Instead of using a fixed 0.5 threshold for all classes, this searches
-    for the best threshold per class on the validation set.  This is
-    especially important for minority classes that may have lower confidence.
-
-    Parameters
-    ----------
-    all_preds   : (N, C) float probabilities
-    all_targets : (N, C) binary targets
-    class_names : list of class name strings
-    search_range: (min_thresh, max_thresh) to search
-    steps       : number of threshold candidates
-
-    Returns
-    -------
-    dict with 'thresholds' (per-class), 'best_metrics' (per-class F1),
-    and 'overall' (macro metrics using optimised thresholds).
-    """
+    
     thresholds = np.linspace(search_range[0], search_range[1], steps)
     num_classes = all_preds.shape[1]
     best_thresholds = np.full(num_classes, 0.5)
@@ -301,11 +234,7 @@ def optimize_per_class_thresholds(all_preds: np.ndarray, all_targets: np.ndarray
 def apply_per_class_thresholds(all_preds: np.ndarray, all_targets: np.ndarray,
                                 class_names: List[str],
                                 thresholds: Dict[str, float]) -> Dict:
-    """Apply pre-computed per-class thresholds (e.g. from validation set) to new data.
-
-    Unlike ``optimize_per_class_thresholds``, this does NOT search — it just
-    applies the given thresholds, making it safe to use on a held-out test set.
-    """
+    
     num_classes = all_preds.shape[1]
     preds_bin = np.zeros_like(all_preds, dtype=int)
     for c, name in enumerate(class_names):
@@ -341,20 +270,10 @@ def apply_per_class_thresholds(all_preds: np.ndarray, all_targets: np.ndarray,
     }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Probability calibration — post-hoc temperature scaling
-# ─────────────────────────────────────────────────────────────────────────────
 def calibrate_probabilities(val_preds: np.ndarray, val_targets: np.ndarray,
                             class_names: List[str]) -> Dict:
-    """Fit per-class temperature scaling on validation predictions.
-
-    For each class, finds a temperature T that maps raw probabilities p
-    to calibrated probabilities via: p_cal = sigmoid(logit(p) / T).
-    This fixes the common problem where sigmoid outputs are poorly
-    calibrated (e.g., true positives cluster at 0.15 instead of > 0.5).
-
-    Returns a dict with per-class temperatures and a diagnostic report.
-    """
+    
     from scipy.special import logit as sp_logit
     from scipy.optimize import minimize_scalar
 
@@ -402,7 +321,6 @@ def calibrate_probabilities(val_preds: np.ndarray, val_targets: np.ndarray,
 
 def apply_calibration(preds: np.ndarray, temperatures: Dict[str, float],
                       class_names: List[str]) -> np.ndarray:
-    """Apply fitted temperature scaling to probability predictions."""
     from scipy.special import logit as sp_logit
 
     calibrated = np.zeros_like(preds)
@@ -414,22 +332,9 @@ def apply_calibration(preds: np.ndarray, temperatures: Dict[str, float],
     return calibrated
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Pearson's r for gate–feature correlation (RQ2)
-# ─────────────────────────────────────────────────────────────────────────────
 def gate_feature_correlation(gate_weights: np.ndarray,
                              rule_scores: np.ndarray) -> Dict:
-    """Pearson's r between each rule's gate weight and its activation score.
-
-    Parameters
-    ----------
-    gate_weights : (N, R+1)  — columns [neural, burst_gate, voicing_gate, rhythm_gate]
-    rule_scores  : (N, R)    — columns [burst_score, voicing_score, rhythm_score]
-
-    Returns
-    -------
-    dict mapping rule name → Pearson r value.
-    """
     rule_names = ["burst", "voicing", "rhythm"]
     num_rules = rule_scores.shape[1] if rule_scores.ndim > 1 else 1
     results = {}

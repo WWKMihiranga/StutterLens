@@ -1,7 +1,3 @@
-"""
-Visualization utilities for the stuttering detection project.
-"""
-
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,7 +6,6 @@ from typing import Dict, List, Optional
 
 def plot_training_curves(history: Dict, title: str = "Training Curves",
                          save_path: Optional[str] = None):
-    """Plot loss and accuracy curves from a training history dict."""
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
     ax = axes[0]
@@ -43,7 +38,6 @@ def plot_training_curves(history: Dict, title: str = "Training Curves",
 def plot_class_distribution(class_counts: Dict[str, int],
                             title: str = "SEP-28k: Class Distribution",
                             save_path: Optional[str] = None):
-    """Bar chart of samples per class."""
     classes = sorted(class_counts.keys())
     counts = [class_counts[c] for c in classes]
 
@@ -64,7 +58,6 @@ def plot_class_distribution(class_counts: Dict[str, int],
 
 
 def plot_rule_contributions(overall: Dict, save_path: Optional[str] = None):
-    """Bar + pie chart of neural vs. rule contributions."""
     components = ["Neural", "Burst", "Voicing", "Rhythm"]
     values = [overall.get("neural", 0),
               overall.get("burst", 0),
@@ -101,13 +94,7 @@ def plot_frame_predictions(frame_probs: np.ndarray, rule_scores: np.ndarray,
                            gate_weights: np.ndarray,
                            class_names: List[str],
                            save_path: Optional[str] = None):
-    """Three-panel visualisation of frame-level model outputs.
-
-    Panels:
-      1. Frame probabilities per class with decision threshold.
-      2. Rule scores (burst, voicing, rhythm).
-      3. Gate weights over time.
-    """
+    
     T = frame_probs.shape[0]
     frames = np.arange(T)
     rule_names = ["Burst", "Voicing", "Rhythm"]
@@ -125,19 +112,7 @@ def plot_frame_predictions(frame_probs: np.ndarray, rule_scores: np.ndarray,
     ax.legend(loc="upper right", fontsize=8)
     ax.grid(alpha=0.3)
 
-    # # 2 — Predictions vs. targets
-    # ax = axes[1]
-    # for c, name in enumerate(class_names):
-    #     if c < frame_preds.shape[1]:
-    #         ax.fill_between(frames, c + frame_preds[:, c] * 0.8, c,
-    #                         alpha=0.4, label=f"Pred {name}")
-    #         ax.fill_between(frames, c + frame_targets[:, c] * 0.8, c,
-    #                         alpha=0.2, hatch="//", label=f"GT {name}")
-    # ax.set_ylabel("Class")
-    # ax.set_title("Predictions (solid) vs. Ground Truth (hatched)")
-    # ax.grid(alpha=0.3)
-
-    # 3 — Rule scores
+    # 2 — Rule scores
     ax = axes[1]
     colors_r = ["#C44E52", "#55A868", "#CCB974"]
     for r, (name, col) in enumerate(zip(rule_names, colors_r)):
@@ -149,7 +124,7 @@ def plot_frame_predictions(frame_probs: np.ndarray, rule_scores: np.ndarray,
     ax.legend(loc="upper right", fontsize=8)
     ax.grid(alpha=0.3)
 
-    # 4 — Gate weights
+    # 3 — Gate weights
     ax = axes[2]
     gate_labels = ["Neural"] + rule_names
     colors_g = ["#4C72B0", "#C44E52", "#55A868", "#CCB974"]
@@ -198,17 +173,12 @@ def plot_calibration_analysis(val_preds: np.ndarray, val_preds_cal: np.ndarray,
                               temperatures: Dict[str, float],
                               thresholds: Dict[str, float],
                               save_path: Optional[str] = None):
-    """Multi-panel calibration diagnostic plot.
-
-    Panel 1: Reliability diagram (before vs. after calibration).
-    Panel 2: Per-class probability distributions (positive vs. negative).
-    Panel 3: Per-class temperature and threshold summary.
-    """
+    
     num_classes = len(class_names)
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
-    # ── Panel 1: Reliability diagram (averaged across classes) ──
+    # Panel 1: Reliability diagram (averaged across classes)
     ax = axes[0]
     n_bins = 10
     for label, preds, color, ls in [
@@ -239,7 +209,7 @@ def plot_calibration_analysis(val_preds: np.ndarray, val_preds_cal: np.ndarray,
     ax.set_xlim(-0.02, 1.02)
     ax.set_ylim(-0.02, 1.02)
 
-    # ── Panel 2: Per-class probability distributions ──
+    # Panel 2: Per-class probability distributions
     ax = axes[1]
     for c, name in enumerate(class_names):
         pos_mask = val_targets[:, c] == 1
@@ -270,7 +240,7 @@ def plot_calibration_analysis(val_preds: np.ndarray, val_preds_cal: np.ndarray,
     ax.set_title('Calibrated Prob. Distribution (Pos vs Neg)')
     ax.grid(axis='y', alpha=0.3)
 
-    # ── Panel 3: Temperature & threshold table ──
+    # Panel 3: Temperature & threshold table
     ax = axes[2]
     ax.axis('off')
     table_data = [['Class', 'Temperature', 'Threshold']]
@@ -298,15 +268,10 @@ def plot_calibration_analysis(val_preds: np.ndarray, val_preds_cal: np.ndarray,
 
 def plot_multilabel_summary(clip_metrics: Dict, class_names: List[str],
                             save_path: Optional[str] = None):
-    """Dashboard showing multi-label specific metrics.
-
-    Panels:
-      1. Per-class accuracy, precision, recall, F1 grouped bar chart.
-      2. Summary table of multi-label metrics (hamming loss, subset acc, sample F1).
-    """
+    
     fig, axes = plt.subplots(1, 2, figsize=(15, 5))
 
-    # ── Panel 1: Per-class grouped bars ──
+    # Panel 1: Per-class grouped bars
     ax = axes[0]
     x = np.arange(len(class_names))
     width = 0.2
@@ -323,7 +288,7 @@ def plot_multilabel_summary(clip_metrics: Dict, class_names: List[str],
     ax.set_ylim(0, 1.05)
     ax.grid(axis='y', alpha=0.3)
 
-    # ── Panel 2: Multi-label summary table ──
+    # Panel 2: Multi-label summary table
     ax = axes[1]
     ax.axis('off')
     summary_data = [

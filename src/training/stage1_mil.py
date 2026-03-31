@@ -1,13 +1,3 @@
-"""
-Stage 1 — Multi-Instance Learning (MIL) training.
-
-Key fixes:
-  - Uses class-weighted focal BCE instead of plain BCE.
-  - Adds gate entropy regularisation (lambda_gate) to prevent gating collapse.
-  - Validation reports per-class recall so collapse is detected early.
-  - Higher learning rate for rule and gating parameters.
-"""
-
 import copy
 import torch
 import numpy as np
@@ -17,14 +7,13 @@ from tqdm.auto import tqdm
 
 from src.training.losses import MILLoss, GateEntropyLoss
 
-# ── NEW: import calibration & threshold utilities ──
+# NEW: import calibration & threshold utilities
 from src.evaluation.metrics import (
     calibrate_probabilities, optimize_per_class_thresholds
 )
 
 
 class EarlyStopping:
-    """Early stopping that supports both 'min' mode (loss) and 'max' mode (F1/recall)."""
     def __init__(self, patience=3, min_delta=0.001, mode="max"):
         self.patience, self.min_delta = patience, min_delta
         self.mode = mode
@@ -46,16 +35,7 @@ class EarlyStopping:
 
 
 def _compute_class_weights(dataset, num_classes: int, cap: float = 10.0) -> tuple:
-    """Inverse-frequency class weights from the dataset CSV.
-
-    Returns
-    -------
-    class_weights : torch.Tensor (C,)
-        Inter-class balancing weights (inverse frequency, capped).
-    pos_weight : torch.Tensor (C,)
-        Returned as ones for backward compatibility.  No longer used
-        by MILLoss (removed to fix recall saturation).
-    """
+    
     if hasattr(dataset, 'df') and 'class' in dataset.df.columns:
         counts = np.zeros(num_classes)
         label2idx = dataset.label2idx
@@ -86,7 +66,6 @@ def _compute_class_weights(dataset, num_classes: int, cap: float = 10.0) -> tupl
 @torch.no_grad()
 def _validate_with_per_class(model, loader, criterion, device, num_classes, class_names,
                               pooling='mixed', mixed_alpha=0.7):
-    """Validate using the same MIL pooling as training (consistency matters)."""
     model.eval()
     total_loss, n = 0.0, 0
     per_class_tp = np.zeros(num_classes)
@@ -141,13 +120,7 @@ def _validate_with_per_class(model, loader, criterion, device, num_classes, clas
 
 def train_stage1(model, train_loader, val_loader, config,
                  num_epochs=None, lambda_gate=0.5):
-    """Run Stage 1 MIL training with class balancing and gate regularisation.
     
-    lambda_gate increased from 0.3 to 0.5 to prevent gate collapse.
-
-    After training, call ``calibrate_and_optimize(model, val_loader, config)``
-    to fit probability calibration and per-class thresholds.
-    """
     num_epochs = num_epochs or config.NUM_EPOCHS_STAGE1
 
     # Compute class weights from training data
@@ -193,7 +166,7 @@ def train_stage1(model, train_loader, val_loader, config,
 
     optimizer = AdamW(param_groups, weight_decay=config.WEIGHT_DECAY)
 
-    # Warmup + cosine annealing scheduler (Issue #11 fix)
+    # Warmup + cosine annealing scheduler
     warmup_steps = getattr(config, 'WARMUP_STEPS', 200)
     warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
         optimizer, start_factor=0.1, end_factor=1.0,
@@ -231,7 +204,7 @@ def train_stage1(model, train_loader, val_loader, config,
         progress = epoch / max(num_epochs - 1, 1)
         current_gate_lambda = gate_lambda_start + (gate_lambda_end - gate_lambda_start) * progress
 
-        # ── Train ──
+        # Train
         model.train()
         total_loss, n = 0.0, 0
         for batch in tqdm(train_loader, desc="Train", leave=False):
@@ -262,7 +235,7 @@ def train_stage1(model, train_loader, val_loader, config,
 
         t_loss = total_loss / max(n, 1)
 
-        # ── Validate ──
+        # Validate
         v_loss, macro_recall, macro_f1, recall_str = _validate_with_per_class(
             model, val_loader, criterion, config.DEVICE,
             config.NUM_CLASSES, class_names,
@@ -308,15 +281,9 @@ def train_stage1(model, train_loader, val_loader, config,
     return model, history
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Post-training calibration & threshold optimisation
-# ─────────────────────────────────────────────────────────────────────────────
 @torch.no_grad()
 def collect_val_predictions(model, val_loader, config):
-    """Collect clip-level probabilities on the validation set.
-
-    Uses the same MIL pooling as training to ensure consistency.
-    """
     model.eval()
     all_preds, all_targets = [], []
     pooling = getattr(config, 'MIL_POOLING', 'mixed')
@@ -344,22 +311,6 @@ def collect_val_predictions(model, val_loader, config):
 
 
 def calibrate_and_optimize(model, val_loader, config):
-    """Run post-training calibration and threshold optimization.
-
-    1. Collect validation predictions.
-    2. Fit per-class temperature scaling (Platt scaling).
-    3. Optimize per-class decision thresholds on calibrated probabilities.
-
-    Returns
-    -------
-    calibration_info : dict with keys
-        'temperatures'   : per-class temperature values
-        'thresholds'     : per-class optimal thresholds
-        'val_preds'      : raw validation predictions
-        'val_preds_cal'  : calibrated validation predictions
-        'val_targets'    : validation targets
-        'diagnostics'    : calibration diagnostic info
-    """
     from src.evaluation.metrics import apply_calibration
 
     class_names = config.STUTTER_TYPES

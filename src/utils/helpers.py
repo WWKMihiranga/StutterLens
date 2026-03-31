@@ -1,7 +1,3 @@
-"""
-Utility functions for reproducibility and logging.
-"""
-
 import os
 import random
 import torch
@@ -11,7 +7,6 @@ from datetime import datetime
 
 
 def set_seed(seed: int = 42):
-    """Set all random seeds for full reproducibility."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -24,7 +19,6 @@ def set_seed(seed: int = 42):
 
 
 class Logger:
-    """Simple file + console logger."""
 
     def __init__(self, log_dir: str):
         self.log_dir = Path(log_dir)
@@ -41,7 +35,6 @@ class Logger:
 
 
 def make_json_serializable(obj):
-    """Recursively convert numpy / torch types for JSON serialisation."""
     if isinstance(obj, dict):
         return {k: make_json_serializable(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):

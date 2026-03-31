@@ -1,14 +1,3 @@
-"""
-Stage 0 — Pre-train the differentiable soft-rule module on synthetic data.
-
-Key fixes vs. original:
-  - Synthetic features match real Wav2Vec2 statistics (zero-mean, unit-var
-    Gaussian is close to Wav2Vec2-base output; but we also add realistic
-    temporal correlations: adjacent frames are similar, not i.i.d.).
-  - More samples (2000) and longer training (10 epochs).
-  - Feature scale is calibrated to Wav2Vec2 output (values roughly ±1-3).
-"""
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -18,18 +7,6 @@ from tqdm.auto import tqdm
 
 
 class SyntheticStutterDataset(Dataset):
-    """Synthetic stutter examples with temporally correlated features.
-
-    Adjacent frames share a correlated base (simulating the temporal
-    smoothness of real Wav2Vec2 outputs), with stuttering events overlaid.
-    3 stutter types matching the 3 rules:
-      type 1 = Interjection (burst rule, target index 0)
-      type 2 = Prolongation (voicing rule, target index 1)
-              — minimum 7 frames of sustained low change to match the
-              improved duration-gated voicing rule.
-      type 3 = Word repetition (rhythm rule, target index 2)
-              — variable period (2-5) to match multi-scale lag detection.
-    """
 
     def __init__(self, num_samples=3000, seq_len=50, feature_dim=768):
         self.num_samples = num_samples

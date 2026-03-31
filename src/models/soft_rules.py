@@ -1,34 +1,9 @@
-"""
-Differentiable Soft-Rule Module — 3-rule version (v2).
-
-Implements three interpretable acoustic rules as differentiable functions,
-one per class:
-  1. **Energy Burst**       — detects interjections (sudden energy spikes).
-  2. **Voicing Continuity** — detects prolongations (sustained low-change over
-     multiple consecutive frames, with per-clip normalisation to reduce
-     false positives on normal sustained vowels).
-  3. **Rhythmic Pattern**   — detects word repetitions (multi-scale periodic
-     structure using lags 2-5 to handle variable word lengths).
-
-Rule order matches STUTTER_TYPES: [interjection, prolongation, word_repetition].
-
-Changes from v1
-----------------
-- Voicing rule: added cumulative low-change duration gate so short sustained
-  sounds (normal vowels) don't trigger the rule — only sustained low-change
-  spanning several frames activates the rule.  Per-clip normalisation of the
-  change rate makes the threshold relative to the clip's own dynamics.
-- Rhythm rule: uses multi-scale lags (2, 3, 4, 5) with learnable per-lag
-  weights and max-pools across lags to capture variable-length repetitions.
-"""
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class DifferentiableSoftRules(nn.Module):
-    """Three differentiable acoustic rules with learnable parameters and temperature."""
 
     def __init__(self, feature_dim: int = 768, num_rules: int = 3,
                  projection_dim: int = 64):
@@ -36,7 +11,7 @@ class DifferentiableSoftRules(nn.Module):
         self.num_rules = num_rules
         self.feature_dim = feature_dim
 
-        # ── Rule 1: Energy burst (interjections) ─────────────────────────
+        # Rule 1: Energy burst (interjections)
         self.burst_threshold = nn.Parameter(torch.tensor(0.5))
         self.burst_weight = nn.Parameter(torch.tensor(2.0))
         self.burst_temp = nn.Parameter(torch.tensor(1.0))
@@ -45,7 +20,7 @@ class DifferentiableSoftRules(nn.Module):
             nn.LayerNorm(projection_dim),
         )
 
-        # ── Rule 2: Voicing continuity (prolongations) — duration-aware ──
+        # Rule 2: Voicing continuity (prolongations) — duration-aware
         self.voicing_threshold = nn.Parameter(torch.tensor(0.3))
         self.voicing_weight = nn.Parameter(torch.tensor(2.0))
         self.voicing_temp = nn.Parameter(torch.tensor(1.0))
@@ -58,7 +33,7 @@ class DifferentiableSoftRules(nn.Module):
         self.voicing_sustain_threshold = nn.Parameter(torch.tensor(4.0))
         self.voicing_sustain_temp = nn.Parameter(torch.tensor(1.0))
 
-        # ── Rule 3: Rhythmic pattern (word repetitions) — multi-scale ────
+        # Rule 3: Rhythmic pattern (word repetitions) — multi-scale
         self.rhythm_threshold = nn.Parameter(torch.tensor(0.4))
         self.rhythm_weight = nn.Parameter(torch.tensor(2.0))
         self.rhythm_temp = nn.Parameter(torch.tensor(1.0))
@@ -70,14 +45,8 @@ class DifferentiableSoftRules(nn.Module):
         self.rhythm_lag_weights = nn.Parameter(torch.tensor([0.5, 1.0, 0.8, 0.5]))
         self.rhythm_lags = [2, 3, 4, 5]
 
-    # ── Individual rules ─────────────────────────────────────────────────
+    # Individual rules
     def energy_burst_rule(self, features: torch.Tensor) -> torch.Tensor:
-        """High output on sudden energy spikes relative to local context.
-
-        Per-clip normalisation of burst_ratio ensures the learnable threshold
-        is relative to the clip's own energy dynamics, preventing the rule from
-        being biased by overall clip loudness.
-        """
         B, T, _ = features.shape
         proj = F.relu(self.burst_proj(features))
         energy = torch.mean(proj ** 2, dim=-1)  # (B, T)
@@ -100,12 +69,6 @@ class DifferentiableSoftRules(nn.Module):
         return torch.sigmoid(self.burst_weight * (burst_ratio - self.burst_threshold) / temp)
 
     def voicing_continuity_rule(self, features: torch.Tensor) -> torch.Tensor:
-        """High output when adjacent frames are similar for a *sustained* duration.
-
-        Per-clip normalisation ensures the threshold is relative to the clip's
-        own dynamics.  A causal duration gate requires low change to persist
-        for several frames before firing.
-        """
         B, T, _ = features.shape
         proj = F.relu(self.voicing_proj(features))
 
@@ -146,11 +109,6 @@ class DifferentiableSoftRules(nn.Module):
         return base_score * sustain_gate
 
     def rhythmic_pattern_rule(self, features: torch.Tensor) -> torch.Tensor:
-        """High output when periodic patterns are detected (word repetitions).
-
-        Uses multiple lags (2-5) with learnable per-lag weights and max-pools
-        across lags so the rule fires when *any* periodic structure is detected.
-        """
         B, T, _ = features.shape
         proj = F.relu(self.rhythm_proj(features))
         normed = F.normalize(proj, p=2, dim=-1, eps=1e-8)
@@ -183,13 +141,8 @@ class DifferentiableSoftRules(nn.Module):
         temp = self.rhythm_temp.clamp(min=0.1)
         return torch.sigmoid(self.rhythm_weight * (rhythm_score - self.rhythm_threshold) / temp)
 
-    # ── Forward ──────────────────────────────────────────────────────────
+    # Forward
     def forward(self, features: torch.Tensor) -> torch.Tensor:
-        """Apply all rules.
-
-        Returns rule_scores : (B, T, 3)
-        Order: [burst (interjection), voicing (prolongation), rhythm (word_rep)]
-        """
         burst = self.energy_burst_rule(features)
         voicing = self.voicing_continuity_rule(features)
         rhythm = self.rhythmic_pattern_rule(features)

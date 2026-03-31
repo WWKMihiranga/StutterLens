@@ -1,13 +1,3 @@
-"""
-Neuro-Symbolic Stutter Detector — the complete model.
-
-Architecture:
-  1. Wav2Vec2 encoder (frozen by default) → frame-level embeddings.
-  2. Temporal Detection Head (BiLSTM) → neural logits.
-  3. Differentiable Soft-Rule Module → rule scores.
-  4. Adaptive Gating Network → combined logits + per-frame explanations.
-"""
-
 import torch
 import torch.nn as nn
 from transformers import Wav2Vec2Model
@@ -19,7 +9,6 @@ from typing import Optional
 
 
 class NeuroSymbolicStutterDetector(nn.Module):
-    """End-to-end neuro-symbolic model for stuttering event detection."""
 
     def __init__(self, config, wav2vec2_model: Optional[Wav2Vec2Model] = None,
                  freeze_encoder: bool = True, use_rules: bool = True):
@@ -76,19 +65,9 @@ class NeuroSymbolicStutterDetector(nn.Module):
             p.requires_grad for p in self.encoder.parameters()
         )
 
-    # ── Forward ──────────────────────────────────────────────────────────
+    # Forward
     def forward(self, audio_input: torch.Tensor, return_details: bool = False):
-        """
-        Parameters
-        ----------
-        audio_input    : (B, samples)
-        return_details : if True, also return intermediate activations
 
-        Returns
-        -------
-        final_logits : (B, T, C)
-        details      : dict (only when return_details=True)
-        """
         # 1 — Wav2Vec2 features
         if not self._encoder_has_grad:
             with torch.no_grad():
@@ -126,7 +105,7 @@ class NeuroSymbolicStutterDetector(nn.Module):
             return final_logits, details
         return final_logits
 
-    # ── Utilities ────────────────────────────────────────────────────────
+    # Utilities
     def count_parameters(self):
         trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
         total = sum(p.numel() for p in self.parameters())

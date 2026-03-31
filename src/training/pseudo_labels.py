@@ -1,15 +1,3 @@
-"""
-Pseudo-label generation from a trained Stage 1 model.
-
-Key fixes:
-  - Uses ADAPTIVE per-class thresholds (percentile-based) instead of a
-    single fixed threshold.  This is critical because some classes (block)
-    produce lower max-probabilities than others (interjection).
-  - Uses the clip-level label as a PRIOR: only generates frame labels for
-    the class that the clip is labelled with (prevents cross-class leakage).
-  - Reports per-class statistics so you can verify coverage.
-"""
-
 import os
 import numpy as np
 import torch
@@ -23,12 +11,7 @@ def generate_pseudo_labels(model, dataframe, preprocessor, config,
                            confidence_threshold=None,
                            min_event_length=None,
                            max_samples=None):
-    """Generate frame-level pseudo-labels.
-
-    Uses a two-pass approach with cached inference:
-      Pass 1 — run model on all samples, cache probs, collect max-prob stats.
-      Pass 2 — threshold cached probs using per-class adaptive thresholds.
-    """
+    
     min_event_length = min_event_length or config.MIN_EVENT_LENGTH
     model.eval()
 
@@ -39,7 +22,7 @@ def generate_pseudo_labels(model, dataframe, preprocessor, config,
     label2idx = {c: i for i, c in enumerate(config.STUTTER_TYPES)}
     num_classes = config.NUM_CLASSES
 
-    # ── Pass 1: run inference ONCE and cache all probabilities ──
+    # Pass 1: run inference ONCE and cache all probabilities
     print("Pseudo-labels Pass 1: running inference and collecting statistics...")
     per_class_maxprobs = {c: [] for c in range(num_classes)}
     cached_probs = {}  # file_path → (T, C) numpy array
@@ -76,7 +59,7 @@ def generate_pseudo_labels(model, dataframe, preprocessor, config,
         name = config.STUTTER_TYPES[c]
         print(f"  {name:20s}: {thresholds[c]:.3f}")
 
-    # ── Pass 2: generate pseudo-labels from CACHED probs (no re-inference) ──
+    # Pass 2: generate pseudo-labels from CACHED probs (no re-inference)
     print("Pass 2: generating pseudo-labels from cached probabilities...")
     pseudo_labels = {}
     stats = {"total": 0, "with_events": 0}

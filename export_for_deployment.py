@@ -1,16 +1,3 @@
-"""
-MODEL EXPORT SCRIPT — Run this on YOUR PC before deploying.
-
-Creates a CPU-only deployment checkpoint from your trained model.
-
-Usage:
-    cd /path/to/your/Final_Implementation
-    python export_for_deployment.py
-
-Output: models/checkpoints/cpu_final_model.pth
-Upload that single file to your Hugging Face Space.
-"""
-
 import os
 import sys
 import torch
@@ -30,7 +17,7 @@ def export_model():
 
     checkpoint_dir = config.CHECKPOINT_DIR
 
-    # ── 1. Locate the best checkpoint ─────────────────────────────────
+    # 1. Locate the best checkpoint
     stage2_path = os.path.join(checkpoint_dir, "stage2_final.pth")
     stage1_path = os.path.join(checkpoint_dir, "stage1_best.pth")
 
@@ -45,7 +32,7 @@ def export_model():
         print(f"  Looked in: {checkpoint_dir}")
         return
 
-    # ── 2. Load checkpoint ────────────────────────────────────────────
+    # 2. Load checkpoint
     print("Loading checkpoint...")
     checkpoint = torch.load(ckpt_path, map_location="cpu", weights_only=False)
 
@@ -70,7 +57,7 @@ def export_model():
         state_dict = checkpoint
         print("  Loaded as raw tensor dict")
 
-    # ── 3. Extract calibration info ───────────────────────────────────
+    # 3. Extract calibration info
     calibration = None
 
     # Stage 2 embeds calibration directly
@@ -100,7 +87,7 @@ def export_model():
     if calibration is None:
         print("  WARNING: No calibration found. Model will use fixed 0.5 thresholds.")
 
-    # ── 4. Load label mappings ────────────────────────────────────────
+    # 4. Load label mappings
     mappings_path = os.path.join(config.DATA_PROCESSED, "label_mappings.json")
     if os.path.exists(mappings_path):
         with open(mappings_path) as f:
@@ -114,7 +101,7 @@ def export_model():
         }
         print(f"  Using default label mappings: {config.STUTTER_TYPES}")
 
-    # ── 5. Build model and load weights ───────────────────────────────
+    # 5. Build model and load weights
     print("\nBuilding model architecture...")
     print(f"  NUM_CLASSES = {config.NUM_CLASSES}")
     print(f"  NUM_RULES = {config.NUM_RULES}")
@@ -139,7 +126,7 @@ def export_model():
     if unexpected:
         print(f"  WARNING: {len(unexpected)} unexpected keys")
 
-    # ── 6. Verify with a test forward pass ────────────────────────────
+    # 6. Verify with a test forward pass
     print("\nVerifying model...")
     model.eval()
     with torch.no_grad():
@@ -154,7 +141,7 @@ def export_model():
             f"Shape mismatch: got {tuple(logits.shape)}, expected {expected}"
         print(f"  Shape check PASSED")
 
-    # ── 7. Save deployment checkpoint ─────────────────────────────────
+    # 7. Save deployment checkpoint
     deploy_config = {
         "SAMPLE_RATE": config.SAMPLE_RATE,
         "CLIP_DURATION": config.CLIP_DURATION,
@@ -193,10 +180,6 @@ def export_model():
         print(f"  Calibration: included")
     else:
         print(f"  Calibration: NOT included (will use fixed 0.5 thresholds)")
-    print(f"\n  Next steps:")
-    print(f"  1. Copy this file to your HF Space: models/checkpoints/")
-    print(f"  2. Use Git LFS for files > 10 MB: git lfs track '*.pth'")
-    print(f"  3. Push to trigger rebuild: git push")
 
 
 if __name__ == "__main__":

@@ -1,12 +1,3 @@
-"""
-Interpretability analysis toolkit.
-
-* **Ablation tests** — compare full model vs. model with rules disabled (RQ3).
-* **Rule contribution analysis** — per-class gate-weight breakdown (RQ2).
-* **Clinical metrics** — events per minute, average event duration.
-* **Single-audio demo** — end-to-end analysis of one recording.
-"""
-
 import os
 import json
 import copy
@@ -18,20 +9,10 @@ from src.evaluation.metrics import detect_events, event_level_f1, boundary_rmse
 from src.utils.helpers import make_json_serializable
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Ablation test (RQ3)
-# ─────────────────────────────────────────────────────────────────────────────
 @torch.no_grad()
 def ablation_test(model, dataset, config, num_samples: int = 200) -> Dict:
-    """Compare full model (rules ON) vs. neural-only (rules OFF).
 
-    Improvements over v1:
-    - Default num_samples raised to 200 (from 50) for statistical significance.
-    - Uses post-processing (median filter + event merging) matching config.
-    - Reports per-class ablation deltas.
-
-    Returns a dict with F1 scores for both conditions.
-    """
     model.eval()
     results = {"full_model": [], "no_rules": []}
     per_class_full = {}
@@ -106,9 +87,7 @@ def ablation_test(model, dataset, config, num_samples: int = 200) -> Dict:
             "per_class_delta": per_class_delta}
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Rule contribution analysis (RQ2)
-# ─────────────────────────────────────────────────────────────────────────────
 @torch.no_grad()
 def analyze_rule_contributions(model, dataset, config,
                                num_samples: int = 30) -> Dict:
@@ -121,7 +100,7 @@ def analyze_rule_contributions(model, dataset, config,
     rule_names = ["burst", "voicing", "rhythm"]
     per_class = {}
 
-    # ── Stratified index selection ────────────────────────────────────────
+    # Stratified index selection
     # Group dataset indices by class, then sample equally from each group.
     class_indices = {}
     for i in range(len(dataset)):
@@ -140,7 +119,7 @@ def analyze_rule_contributions(model, dataset, config,
                             replace=False).tolist()
         selected_indices.extend(chosen)
 
-    # ── Run inference on selected samples ─────────────────────────────────
+    # Run inference on selected samples
     for i in selected_indices:
         sample = dataset[i]
         audio = sample["audio"].unsqueeze(0).to(config.DEVICE)
@@ -180,9 +159,7 @@ def analyze_rule_contributions(model, dataset, config,
             "most_important_rule": most_important}
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Clinical metrics
-# ─────────────────────────────────────────────────────────────────────────────
 def compute_clinical_metrics(events: List[Dict], duration_seconds: float,
                              ms_per_frame: float = 20.0) -> Dict:
     """Compute events/minute and average event duration."""
@@ -203,17 +180,11 @@ def compute_clinical_metrics(events: List[Dict], duration_seconds: float,
     }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Single-audio demo
-# ─────────────────────────────────────────────────────────────────────────────
 @torch.no_grad()
 def demo_single_audio(model, audio_path: str, preprocessor, config,
                       idx2label: Dict, calibration_info: Dict = None) -> Dict:
-    """Run the full pipeline on one audio file and return a JSON-safe report.
-
-    If *calibration_info* is provided, applies temperature scaling and
-    uses per-class optimised thresholds instead of fixed 0.5.
-    """
+    
     model.eval()
     audio = preprocessor.load_and_preprocess(audio_path)
     if audio is None:

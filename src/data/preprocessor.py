@@ -1,8 +1,3 @@
-"""
-Audio loading, normalisation, and preprocessing for the stuttering detection pipeline.
-Includes training-time augmentation for improved class-wise accuracy.
-"""
-
 import os
 import numpy as np
 import librosa
@@ -10,10 +5,6 @@ from typing import Optional
 
 
 class AudioPreprocessor:
-    """
-    Loads raw audio, resamples to target sample-rate, normalises amplitude,
-    and pads/trims to a fixed length suitable for Wav2Vec2.
-    """
 
     def __init__(self, target_sr: int = 16_000, clip_duration: float = 3.0,
                  seed: int = 42):
@@ -24,12 +15,6 @@ class AudioPreprocessor:
         self._aug_counter = 0
 
     def load_and_preprocess(self, file_path: str, augment: bool = False) -> Optional[np.ndarray]:
-        """Load a single audio file, normalise, and pad/trim.
-
-        Returns
-        -------
-        np.ndarray of shape (target_length,) or None on failure.
-        """
         try:
             audio, _ = librosa.load(
                 file_path, sr=self.target_sr, mono=True, duration=self.clip_duration
@@ -58,16 +43,6 @@ class AudioPreprocessor:
             return None
 
     def _augment(self, audio: np.ndarray) -> np.ndarray:
-        """Apply stochastic augmentations to improve generalisation.
-
-        Augmentations (each applied independently with given probability):
-          1. Additive Gaussian noise (SNR 15-30 dB) — 50%
-          2. Time masking (SpecAugment-style, 1-3 masks) — 40%
-          3. Gain perturbation (±4 dB) — 50%
-          4. Time shift (up to ±10% of clip length) — 30%
-          5. Speed perturbation (0.9x - 1.1x) — 30%
-          6. Pitch shift (±1 semitone) — 20%
-        """
         rng = np.random.default_rng(self._aug_seed + self._aug_counter)
         self._aug_counter += 1
 

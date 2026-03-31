@@ -1,13 +1,3 @@
-"""
-Stage 2 — Self-training with Mean Teacher.
-
-Key fixes:
-  - Gate entropy regularisation continues during Stage 2.
-  - Weak MIL loss weight raised to 0.5 (was 0.1) so clip-level supervision
-    stays strong even with sparse pseudo-labels.
-  - Validation tracks per-class recall.
-"""
-
 import copy
 import torch
 import numpy as np
@@ -40,15 +30,6 @@ class MeanTeacher:
 
 def train_stage2(mean_teacher, train_loader, val_loader, config,
                  num_epochs=None, lambda_gate=0.4, calibration_info=None):
-    """Stage 2 self-training with Mean Teacher.
-
-    Parameters
-    ----------
-    calibration_info : dict, optional
-        If provided (from stage1.calibrate_and_optimize), the Stage 2
-        validation uses calibrated probabilities and per-class thresholds
-        instead of the default fixed 0.5 threshold.
-    """
     num_epochs = num_epochs or config.NUM_EPOCHS_STAGE2
     student = mean_teacher.student
 
@@ -70,7 +51,7 @@ def train_stage2(mean_teacher, train_loader, val_loader, config,
         beta=config.BOUNDARY_LOSS_BETA,
         lam_sup=config.LAMBDA_SUPERVISED,
         lam_cons=config.LAMBDA_CONSISTENCY,
-        lam_weak=0.5,  # raised from 0.1
+        lam_weak=0.5,
         temperature=config.CONSISTENCY_TEMPERATURE,
         class_weights=class_weights,
         pos_weight=pos_weight,
@@ -180,21 +161,6 @@ def train_stage2(mean_teacher, train_loader, val_loader, config,
 
 @torch.no_grad()
 def _validate_stage2(model, loader, config, calibration_info=None):
-    """Compute macro F1 and validation loss on the validation set.
-
-    If *calibration_info* is provided (from stage 1 calibrate_and_optimize),
-    uses calibrated probabilities and per-class thresholds.  Otherwise falls
-    back to fixed 0.5 threshold.
-
-    The validation loss is computed using a plain MIL loss (same formulation
-    as the weak-supervision component of the training loss) so the loss curve
-    is on a comparable scale to the training loss.
-
-    Returns
-    -------
-    macro_f1 : float
-    val_loss : float
-    """
     from src.training.losses import MILLoss
     model.eval()
     per_class_tp = np.zeros(config.NUM_CLASSES)

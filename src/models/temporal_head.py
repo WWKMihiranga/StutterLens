@@ -1,20 +1,8 @@
-"""
-Temporal Detection Head.
-
-A bidirectional LSTM with LayerNorm followed by a multi-layer classifier that
-produces frame-level class logits from Wav2Vec2 embeddings.
-BiLSTM offers better long-range dependency modelling than BiGRU thanks to its
-explicit cell state, which helps capture prolonged stuttering events.
-Deeper architecture with residual connection improves class-discriminative
-temporal features.
-"""
-
 import torch
 import torch.nn as nn
 
 
 class TemporalDetectionHead(nn.Module):
-    """BiLSTM-based frame-level classifier with LayerNorm and residual MLP."""
 
     def __init__(self, input_dim: int = 768, hidden_dim: int = 256,
                  num_layers: int = 2, num_classes: int = 3,
@@ -47,16 +35,6 @@ class TemporalDetectionHead(nn.Module):
         self.output_head = nn.Linear(hidden_dim // 2, num_classes)
 
     def forward(self, features: torch.Tensor):
-        """
-        Parameters
-        ----------
-        features : (B, T, D)
-
-        Returns
-        -------
-        logits         : (B, T, C)
-        lstm_features  : (B, T, 2*H)   — used by the gating network
-        """
         lstm_out, _ = self.lstm(features)
         lstm_out = self.layer_norm(lstm_out)
 

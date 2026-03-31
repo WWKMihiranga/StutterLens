@@ -1,11 +1,3 @@
-"""
-PyTorch Dataset classes for the stuttering detection pipeline.
-
-* ``StutterDatasetClipLevel``  — Stage 1 (MIL): returns (audio, clip_label).
-* ``StutterDatasetFrameLevel`` — Stage 2 (self-training): returns
-  (audio, clip_label, frame_label, has_pseudo).
-"""
-
 import os
 import numpy as np
 import pandas as pd
@@ -16,11 +8,8 @@ from src.data.preprocessor import AudioPreprocessor
 from typing import Optional
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Stage 1 — clip-level labels only
-# ─────────────────────────────────────────────────────────────────────────────
 class StutterDatasetClipLevel(Dataset):
-    """Memory-efficient dataset that loads audio on demand."""
 
     def __init__(self, csv_path: str, preprocessor: AudioPreprocessor,
                  label2idx: dict, max_samples: Optional[int] = None,
@@ -46,7 +35,6 @@ class StutterDatasetClipLevel(Dataset):
         self.class_weights[-1] = 1.0
 
     def get_sample_weights(self) -> torch.Tensor:
-        """Return per-sample weights for WeightedRandomSampler."""
     
         classes = self.df["class"].values
 
@@ -56,8 +44,6 @@ class StutterDatasetClipLevel(Dataset):
             for cls in classes
         ]
 
-        # IMPORTANT:
-        # sampler weights MUST stay on CPU
         return torch.tensor(weights, dtype=torch.float32, device="cpu")
 
     def __len__(self):
@@ -94,13 +80,9 @@ class StutterDatasetClipLevel(Dataset):
         }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 — frame-level pseudo-labels
-# ─────────────────────────────────────────────────────────────────────────────
 class StutterDatasetFrameLevel(Dataset):
-    """Wraps a clip-level dataset and augments each sample with pre-computed
-    frame-level pseudo-labels loaded from a ``.npz`` archive."""
-
+    
     def __init__(self, clip_dataset: StutterDatasetClipLevel,
                  pseudo_labels_path: Optional[str] = None,
                  expected_seq_len: int = 149):
