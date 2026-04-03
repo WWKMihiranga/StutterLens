@@ -166,7 +166,20 @@ StutterLens/
 └── README.md
 ```
 
-## Dataset
+## Original Dataset
+
+The dataset is not included in this repository due to size and privacy constraints.
+
+Download instructions: https://github.com/apple/ml-stuttering-events-dataset
+
+After download:
+Place files inside `data/raw/`
+
+## Processed dataset
+
+The dataset is already processed and can be copied and pasted directly into `data/raw/`.
+
+Download processed dataset: https://drive.google.com/drive/folders/1K9hf4EN3mEOOJu5FmFXIBlTX4ZOtJMA7?usp=drive_link
 
 **SEP-28k** (Stuttering Events in Podcasts): ~28 000 three-second clips.
 After filtering to 3 target classes + negative sampling:
